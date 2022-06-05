@@ -24,8 +24,7 @@ The Apple vendor ID must be a unique string of up to 100 characters made only of
 
 ### iTunes Transporter
 
-iTunes Transporter is a command line tool replacement for the GUI [iTunes Producer]
-(https://itunespartner.apple.com/books/tools). Contact [Apple Books publisher support](https://itunespartner.apple.com/books/articles/apple-books-support-2701) for issues with this. We recommend ensuring you are able to submit a book with iTunes Producer before testing the process with iTunes Transporter.
+iTunes Transporter is a command line tool replacement for the GUI [iTunes Producer](https://itunespartner.apple.com/books/tools). Contact [Apple Books publisher support](https://itunespartner.apple.com/books/articles/apple-books-support-2701) for issues with this. We recommend ensuring you are able to submit a book with iTunes Producer before testing the process with iTunes Transporter.
 
 #### iTunes password
 
