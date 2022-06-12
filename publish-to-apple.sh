@@ -77,62 +77,81 @@ for arg in "$@"; do
 done
 
 # Default behavior
-prebuilt_epub=false; run_transporter=true;
+prebuilt_epub=false; run_transporter=true
+
+# Initialise variables
+path_to_repo=false; path_to_epub=false; transporter_username=false; transporter_password=false
 
 # Parse short options
 OPTIND=1
-while getopts ":h:r:e:u:p:" opt
+while getopts "h:r:e:u:p:" opt
 do
 	case "${opt}" in
 		'h') Help; exit 0 ;;
-		'r') path_to_repo=${OPTARG} || {
-			echo >&2 "path to repository is required"
-			exit 1;
-		};;
+		'r') path_to_repo=${OPTARG};;
 		'e') path_to_epub=${OPTARG} && prebuilt_epub=true;;
-		'u') transporter_username=${OPTARG} || run_transporter=false;;
-		'p') transporter_password=${OPTARG} || run_transporter=false;;
+		'u') transporter_username=${OPTARG};;
+		'p') transporter_password=${OPTARG};;
 		'?') Help >&2; exit 1 ;;
 	esac
 done
 shift $(expr $OPTIND - 1) # remove options from positional parameters
 
-# define project name
-se_name="${path_to_repo##*/}"
+# Deal with missing inputs
+if [[ $transporter_username == false || $transporter_password == false ]]; then
+	run_transporter=false
+fi
+if [[ $path_to_repo == false ]]; then
+	echo >&2 "path to repository is required"; exit 1
+fi
+
+# echo 'arguments'
+# echo 'path_to_repo' $path_to_repo
+# echo 'path_to_epub' $path_to_epub
+# echo 'transporter_username' $transporter_username
+# echo 'transporter_password' $transporter_password
+# echo 'run_transporter' $run_transporter
+# echo 'prebuilt_epub' $prebuilt_epub
+
 
 # get pwd
 original_directory=$(pwd)
 
+# go to repo, make a temp directory
+cd "${path_to_repo}/src/epub"
+mkdir "${path_to_repo}/temp"
+
+#define input filenames
+content_input="${path_to_repo}/src/epub/content.opf"
+cover_filename="${path_to_repo}/images/cover.jpg"
+
+# Define project name, epub filename
+se_github=$(xml sel -t -c '//_:meta[@property="se:url.vcs.github"]/text()' "${content_input}")
+se_name=${se_github:34}
+epub_filename="${se_name}.epub"
+
+# Create output file
+itmsp_name="${path_to_repo}/temp/${se_name}.itmsp"
+mkdir "$itmsp_name"
+metadata_output="${itmsp_name}/metadata.xml"
+
 # if no epub path, build compatible epub to temp folder and set that as path to epub
 if [[ $prebuilt_epub == false ]]; then
 	se build -o "${path_to_repo}/temp" -v "${path_to_repo}"
-	path_to_epub="${path_to_repo}/temp/${se_name}.epub"
-else
-	mkdir "${path_to_repo}/temp"
+	path_to_epub="${path_to_repo}/temp/${epub_filename}"
 fi
 
-# go to repo
-cd "${path_to_repo}/src/epub"
-
-# create output file
-itsmp_name="${path_to_repo}/temp/${se_name}.itmsp"
-mkdir "$itsmp_name"
-metadata_output="${itsmp_name}/metadata.xml"
-content_input="./content.opf"
-cover_filename="images/cover.jpg"
-
-
 # Define file hashes
-epub_md5=($(md5sum "${head_directory}/${epub_filename}"))
+epub_md5=($(md5sum "${path_to_epub}"))
 cover_md5=($(md5sum "$cover_filename"))
 
 # Define file sizes
-epub_size=$(stat -f%z "${head_directory}/${epub_filename}")
+epub_size=$(stat -f%z "${path_to_epub}")
 cover_size=$(stat -f%z "$cover_filename")
 
 # Create .docinfo file
-touch ".docinfo"
-cat << EOF > ".docinfo"
+touch "${itmsp_name}/.docinfo"
+cat << EOF > "${itmsp_name}/.docinfo"
 6270 6c69 7374 3030 d401 0203 0405 0607
 0a58 2476 6572 7369 6f6e 5924 6172 6368
 6976 6572 5424 746f 7058 246f 626a 6563
@@ -153,11 +172,11 @@ a4af b8ce d2df 0000 0000 0000 0101 0000
 0000 0000 001e 0000 0000 0000 0000 0000
 0000 0000 00e8 
 EOF
-truncate -s -1 ".docinfo"
+truncate -s -1 "${itmsp_name}/.docinfo"
 
 # Copy over the epub and cover artwork
-cp "${path_to_epub}" "${itsmp_name}/${path_to_epub##*/}"
-cp "${cover_filename}" "${itsmp_name}/cover.jpg"
+cp "${path_to_epub}" "${itmsp_name}/${path_to_epub##*/}"
+cp "${cover_filename}" "${itmsp_name}/cover.jpg"
 
 # Create vendor id
 vendor_id="${se_name//[^a-zA-Z0-9]}"
@@ -175,15 +194,15 @@ cat << EOF > "${metadata_output}"
 EOF
 
 ## Add series
-if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" ${content_input}) ]]; then
-	collection_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" ${content_input})
+if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" "${content_input}") ]]; then
+	collection_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" "${content_input}")
 	for i in $(seq 1 $collection_count)
 	do
-		collection_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='collection-type' and @refines='#collection-${i}']/text()" ${content_input})
+		collection_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='collection-type' and @refines='#collection-${i}']/text()" "${content_input}")
 		if [[ $collection_type == series ]]; then
 			add_series=true
-			series_name=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='collection-${i}']/text()" ${content_input})
-			series_number=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='group-position' and @refines='#collection-${i}']/text()" ${content_input})
+			series_name=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='collection-${i}']/text()" "${content_input}")
+			series_number=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='group-position' and @refines='#collection-${i}']/text()" "${content_input}")
 		else
 			add_series=false
 		fi
@@ -201,14 +220,14 @@ EOF
 fi
 
 ## Add title
-title=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c '//dc:title[1]/text()' ${content_input})
+title=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c '//dc:title[1]/text()' "${content_input}")
 cat << EOF >> "${metadata_output}"
             <title>$title</title>
 EOF
 
 ## Add subtitle
-if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" ${content_input}) ]]; then
-	subtitle=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" ${content_input})
+if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" "${content_input}") ]]; then
+	subtitle=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" "${content_input}")
 cat << EOF >> "${metadata_output}"
             <subtitle>$subtitle</subtitle>
 EOF
@@ -222,13 +241,13 @@ EOF
 
 ## Add author - NEEDS UPDATING
 ### Count dc:creator tags
-author_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//dc:creator)" ${content_input})
+author_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//dc:creator)" "${content_input}")
 ### For each dc:creator, add a primary contributor author tag
 for i in $(seq 1 $author_count)
 do
-author=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:creator[$i]/text()" ${content_input})
+author=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:creator[$i]/text()" "${content_input}")
 ### NEED AUTHOR_SORT_TYPE
-author_sort=$(xml sel -t -c '//_:meta[@property="file-as"][@refines="#author"]/text()' ${content_input})
+author_sort=$(xml sel -t -c '//_:meta[@property="file-as"][@refines="#author"]/text()' "${content_input}")
 cat << EOF >> "${metadata_output}"
                 <contributor>
                     <primary>true</primary>
@@ -242,14 +261,14 @@ EOF
 done
 
 ## Count contributors, loop through them all
-contributor_count=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c 'count(//dc:contributor)' ${content_input})
+contributor_count=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c 'count(//dc:contributor)' "${content_input}")
 
 for i in $(seq 1 $contributor_count)
 do
-	contributor_name=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:contributor[$i]/text()" ${content_input})
-	se_contributor_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "string(//dc:contributor[$i]/@id)" ${content_input})
-	marc_contributor_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='role' and @refines='#${se_contributor_type}']/text()" ${content_input})
-	contributor_sort=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='file-as' and @refines='#${se_contributor_type}']/text()" ${content_input})
+	contributor_name=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:contributor[$i]/text()" "${content_input}")
+	se_contributor_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "string(//dc:contributor[$i]/@id)" "${content_input}")
+	marc_contributor_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='role' and @refines='#${se_contributor_type}']/text()" "${content_input}")
+	contributor_sort=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='file-as' and @refines='#${se_contributor_type}']/text()" "${content_input}")
 
 	if [[ $se_contributor_type == producer* ]]; then
 		apple_role="prepared for publication by"
@@ -365,8 +384,8 @@ cat << EOF >> "${metadata_output}"
 EOF
 
 ## Add page count
-word_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:word-count']/text()" ${content_input})
-if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" ${content_input}) == *Drama* ]]
+word_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:word-count']/text()" "${content_input}")
+if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" "${content_input}") == *Drama* ]]
 	then
 		page_count=$(echo $(($word_count/180+5)))
 	else
@@ -379,8 +398,8 @@ EOF
 
 ## Add subjects
 ### Count subjects, extract subject list
-se_subject_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='se:subject']/text())" ${content_input})
-se_subjects=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" ${content_input})
+se_subject_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='se:subject']/text())" "${content_input}")
+se_subjects=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" "${content_input}")
 
 ## Get booleans of if each subject is present
 if [[ $se_subjects == *Adventure* ]]; then
@@ -477,13 +496,13 @@ cat << EOF >> "${metadata_output}"
 EOF
 
 ## Add description
-long_description=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='long-description']/text()" ${content_input})
+long_description=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='long-description']/text()" "${content_input}")
 cat << EOF >> "${metadata_output}"
             <description format="html">$long_description</description>
 EOF
 
 ## Add publication date
-se_pub_date=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:date/text()" ${content_input})
+se_pub_date=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:date/text()" "${content_input}")
 pub_date=${se_pub_date:0:10}
 cat << EOF >> "${metadata_output}"
             <publisher>Standard Ebooks</publisher>
@@ -550,9 +569,9 @@ EOF
 
 # submit itmsp
 if [[ $run_transporter == true ]]; then
-	/usr/local/itms/bin/iTMSTransporter -m upload -f $itmsp_name -u $transporter_username -p $transporter_password #-v eXtreme
+	/usr/local/itms/bin/iTMSTransporter -m upload -f "${itmsp_name}" -u $transporter_username -p $transporter_password
 else
-	cp "${itsmp_name}" "${original_directory}/${se_name}.itmsp"
+	cp -r "${itmsp_name}" "${original_directory}/${se_name}.itmsp"
 fi
 
 # delete temp directory
