@@ -129,7 +129,7 @@ content_input="${path_to_repo}/src/epub/content.opf"
 cover_filename="${path_to_repo}/images/cover.jpg"
 
 # Define project name, epub filename
-se_github=$(xml sel -t -c '//_:meta[@property="se:url.vcs.github"]/text()' "${content_input}")
+se_github=$(xmlstarlet sel -t -c '//_:meta[@property="se:url.vcs.github"]/text()' "${content_input}")
 se_name=${se_github:34}
 epub_filename="${se_name}.epub"
 
@@ -197,15 +197,15 @@ cat << EOF > "${metadata_output}"
 EOF
 
 ## Add series
-if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" "${content_input}") ]]; then
-	collection_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" "${content_input}")
+if [[ $(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" "${content_input}") ]]; then
+	collection_count=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='belongs-to-collection']/text())" "${content_input}")
 	for i in $(seq 1 $collection_count)
 	do
-		collection_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='collection-type' and @refines='#collection-${i}']/text()" "${content_input}")
+		collection_type=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='collection-type' and @refines='#collection-${i}']/text()" "${content_input}")
 		if [[ $collection_type == series ]]; then
 			add_series=true
-			series_name=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='collection-${i}']/text()" "${content_input}")
-			series_number=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='group-position' and @refines='#collection-${i}']/text()" "${content_input}")
+			series_name=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='collection-${i}']/text()" "${content_input}")
+			series_number=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='group-position' and @refines='#collection-${i}']/text()" "${content_input}")
 		else
 			add_series=false
 		fi
@@ -223,14 +223,14 @@ EOF
 fi
 
 ## Add title
-title=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c '//dc:title[1]/text()' "${content_input}")
+title=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c '//dc:title[1]/text()' "${content_input}")
 cat << EOF >> "${metadata_output}"
             <title>$title</title>
 EOF
 
 ## Add subtitle
-if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" "${content_input}") ]]; then
-	subtitle=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" "${content_input}")
+if [[ $(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" "${content_input}") ]]; then
+	subtitle=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:title[@id='subtitle']/text()" "${content_input}")
 cat << EOF >> "${metadata_output}"
             <subtitle>$subtitle</subtitle>
 EOF
@@ -244,13 +244,13 @@ EOF
 
 ## Add author - NEEDS UPDATING
 ### Count dc:creator tags
-author_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//dc:creator)" "${content_input}")
+author_count=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//dc:creator)" "${content_input}")
 ### For each dc:creator, add a primary contributor author tag
 for i in $(seq 1 $author_count)
 do
-author=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:creator[$i]/text()" "${content_input}")
+author=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:creator[$i]/text()" "${content_input}")
 ### NEED AUTHOR_SORT_TYPE
-author_sort=$(xml sel -t -c '//_:meta[@property="file-as"][@refines="#author"]/text()' "${content_input}")
+author_sort=$(xmlstarlet sel -t -c '//_:meta[@property="file-as"][@refines="#author"]/text()' "${content_input}")
 cat << EOF >> "${metadata_output}"
                 <contributor>
                     <primary>true</primary>
@@ -264,14 +264,14 @@ EOF
 done
 
 ## Count contributors, loop through them all
-contributor_count=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c 'count(//dc:contributor)' "${content_input}")
+contributor_count=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c 'count(//dc:contributor)' "${content_input}")
 
 for i in $(seq 1 $contributor_count)
 do
-	contributor_name=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:contributor[$i]/text()" "${content_input}")
-	se_contributor_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "string(//dc:contributor[$i]/@id)" "${content_input}")
-	marc_contributor_type=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='role' and @refines='#${se_contributor_type}']/text()" "${content_input}")
-	contributor_sort=$(xml sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='file-as' and @refines='#${se_contributor_type}']/text()" "${content_input}")
+	contributor_name=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:contributor[$i]/text()" "${content_input}")
+	se_contributor_type=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "string(//dc:contributor[$i]/@id)" "${content_input}")
+	marc_contributor_type=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='role' and @refines='#${se_contributor_type}']/text()" "${content_input}")
+	contributor_sort=$(xmlstarlet sel -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='file-as' and @refines='#${se_contributor_type}']/text()" "${content_input}")
 
 	if [[ $se_contributor_type == producer* ]]; then
 		apple_role="prepared for publication by"
@@ -387,8 +387,8 @@ cat << EOF >> "${metadata_output}"
 EOF
 
 ## Add page count
-word_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:word-count']/text()" "${content_input}")
-if [[ $(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" "${content_input}") == *Drama* ]]
+word_count=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:word-count']/text()" "${content_input}")
+if [[ $(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" "${content_input}") == *Drama* ]]
 	then
 		page_count=$(echo $(($word_count/180+5)))
 	else
@@ -401,8 +401,8 @@ EOF
 
 ## Add subjects
 ### Count subjects, extract subject list
-se_subject_count=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='se:subject']/text())" "${content_input}")
-se_subjects=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" "${content_input}")
+se_subject_count=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "count(//opf:meta[@property='se:subject']/text())" "${content_input}")
+se_subjects=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@property='se:subject']/text()" "${content_input}")
 
 ## Get booleans of if each subject is present
 if [[ $se_subjects == *Adventure* ]]; then
@@ -499,13 +499,13 @@ cat << EOF >> "${metadata_output}"
 EOF
 
 ## Add description
-long_description=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='long-description']/text()" "${content_input}")
+long_description=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//opf:meta[@id='long-description']/text()" "${content_input}")
 cat << EOF >> "${metadata_output}"
             <description format="html">$long_description</description>
 EOF
 
 ## Add publication date
-se_pub_date=$(xml sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:date/text()" "${content_input}")
+se_pub_date=$(xmlstarlet sel  -N opf="http://www.idpf.org/2007/opf" -N dc="http://purl.org/dc/elements/1.1/" -t -c "//dc:date/text()" "${content_input}")
 pub_date=${se_pub_date:0:10}
 cat << EOF >> "${metadata_output}"
             <publisher>Standard Ebooks</publisher>
