@@ -5,7 +5,7 @@ At it's heart, this is a shell script that takes a [Standard Ebooks](https://git
 
 ### Dependencies
 
-This script uses the [Standard Ebooks toolkit](https://github.com/standardebooks/tools), [truncate](https://formulae.brew.sh/formula/truncate), and [iTunes Transporter](https://help.apple.com/itc/transporteruserguide/en.lproj/static.html) as dependencies. It has been tested in a zsh environment on Apple silicon. If you are planning to run this on unrelated epubs, you may find that the Standard Ebooks command extract-ebook is very useful for unpacking the epub file to get access to the metadata and other assets.
+This script uses the [Standard Ebooks toolkit](https://github.com/standardebooks/tools), [truncate](https://formulae.brew.sh/formula/truncate), [XMLStarlet](https://formulae.brew.sh/formula/xmlstarlet), and [iTunes Transporter](https://help.apple.com/itc/transporteruserguide/en.lproj/static.html) as dependencies. It has been tested in a zsh environment on Apple silicon. If you are planning to run this on unrelated epubs, you may find that the Standard Ebooks command extract-ebook is very useful for unpacking the epub file to get access to the metadata and other assets.
 
 ### Extracting metadata
 

@@ -61,7 +61,10 @@ command -v /usr/local/itms/bin/iTMSTransporter >/dev/null 2>&1 || {
 		echo >&2 "iTunes Transporter required. iTunes Transporter can be downloaded from https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__OSX/bin/."; 
 		exit 1; 
 	}
-
+command -v XMLStarlet >/dev/null 2>&1 || { 
+		echo >&2 "XMLStarlet required. Install using brew install XMLStarlet."; 
+		exit 1; 
+	}
 
 # Transform long options to short ones
 for arg in "$@"; do
